@@ -1,0 +1,61 @@
+name: Vérifier les vols
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+    inputs:
+      startup_notice:
+        description: "Envoyer le message d'activation sur Discord"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flight-price-monitor
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      MAX_PRICE_EUR: "650"
+      MAX_AVERAGE_MINUTES: "1200"
+      NOTIFY_AGAIN_AFTER_HOURS: "24"
+      STARTUP_NOTICE: ${{ inputs.startup_notice == true && '1' || '0' }}
+
+    steps:
+      - name: Récupérer le projet
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Installer le robot
+        run: npm ci
+
+      - name: Installer Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Vérifier toutes les offres
+        run: npm run check
+
+      - name: Sauvegarder l'historique anti-doublon
+        if: always()
+        run: |
+          if git diff --quiet -- .monitor-state.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .monitor-state.json
+          git commit -m "chore: mise à jour de la surveillance [skip ci]"
+          git push

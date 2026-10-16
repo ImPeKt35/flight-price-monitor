@@ -1,0 +1,13 @@
+{
+  "name": "flight-price-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node src/check-flights.mjs",
+    "check:dry": "DRY_RUN=1 node src/check-flights.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.64.1"
+  }
+}
