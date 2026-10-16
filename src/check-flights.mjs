@@ -239,6 +239,9 @@ async function notifyMatch(result) {
 async function main() {
   const state = await readState();
   state.notified ||= {};
+  const originalState = JSON.stringify(state);
+  const lastPersistedAt = state.lastPersistedAt ? new Date(state.lastPersistedAt).getTime() : 0;
+  const checkpointDue = now.getTime() - lastPersistedAt >= 6 * 60 * 60 * 1000;
   let runtime;
   try {
     runtime = await startUnmarkedChrome();
@@ -247,12 +250,14 @@ async function main() {
     const result = await findMatches(page);
     state.consecutiveFailures = 0;
     state.lastError = null;
-    state.lastRead = {
-      checkedAt: now.toISOString(),
-      outboundOffers: result.outboundCount,
-      cheapestTotalSeen: result.cheapest,
-      matches: result.matches.length,
-    };
+    if (checkpointDue || result.matches.length > 0 || CONFIG.startupNotice) {
+      state.lastRead = {
+        checkedAt: now.toISOString(),
+        outboundOffers: result.outboundCount,
+        cheapestTotalSeen: result.cheapest,
+        matches: result.matches.length,
+      };
+    }
 
     const repeatDelay = CONFIG.notifyAgainAfterHours * 60 * 60 * 1000;
     for (const match of result.matches) {
@@ -294,8 +299,9 @@ async function main() {
     state.notified = Object.fromEntries(
       Object.entries(state.notified).filter(([, sentAt]) => new Date(sentAt).getTime() >= expiration),
     );
-    state.lastRunAt = now.toISOString();
-    await saveState(state);
+    if (checkpointDue || state.consecutiveFailures > 0) state.lastRunAt = now.toISOString();
+    if (checkpointDue) state.lastPersistedAt = now.toISOString();
+    if (JSON.stringify(state) !== originalState) await saveState(state);
   }
 }
 
