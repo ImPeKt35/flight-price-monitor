@@ -1,9 +1,9 @@
 {
   "notified": {},
-  "consecutiveFailures": 0,
+  "consecutiveFailures": 1,
   "lastHealthAlertAt": null,
-  "lastRunAt": "2026-10-16T17:58:00.653Z",
-  "lastError": null,
+  "lastRunAt": "2026-10-16T23:28:59.719Z",
+  "lastError": "Google Flights a refusé la recherche",
   "lastRead": {
     "checkedAt": "2026-10-16T17:58:00.653Z",
     "outboundOffers": 9,
