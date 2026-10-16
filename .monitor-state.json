@@ -2,12 +2,13 @@
   "notified": {},
   "consecutiveFailures": 0,
   "lastHealthAlertAt": null,
-  "lastRunAt": "2026-10-16T17:56:17.439Z",
+  "lastRunAt": "2026-10-16T17:58:00.653Z",
   "lastError": null,
   "lastRead": {
-    "checkedAt": "2026-10-16T17:56:17.439Z",
+    "checkedAt": "2026-10-16T17:58:00.653Z",
     "outboundOffers": 9,
     "cheapestTotalSeen": 985,
     "matches": 0
-  }
+  },
+  "lastPersistedAt": "2026-10-16T17:58:00.653Z"
 }
