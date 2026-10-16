@@ -2,5 +2,12 @@
   "notified": {},
   "consecutiveFailures": 0,
   "lastHealthAlertAt": null,
-  "lastRunAt": null
+  "lastRunAt": "2026-10-16T17:56:17.439Z",
+  "lastError": null,
+  "lastRead": {
+    "checkedAt": "2026-10-16T17:56:17.439Z",
+    "outboundOffers": 9,
+    "cheapestTotalSeen": 985,
+    "matches": 0
+  }
 }
