@@ -2,15 +2,22 @@
   "notified": {},
   "consecutiveFailures": 0,
   "lastHealthAlertAt": null,
-  "lastRunAt": "2026-10-17T01:29:55.509Z",
+  "lastRunAt": "2026-10-17T09:03:45.786Z",
   "lastError": null,
   "lastRead": {
-    "checkedAt": "2026-10-17T01:29:55.509Z",
+    "checkedAt": "2026-10-17T09:03:45.786Z",
     "outboundOffers": 9,
     "cheapestTotalSeen": 985,
     "matches": 0
   },
   "lastPersistedAt": "2026-10-17T01:29:55.509Z",
-  "hourlyObservations": [],
-  "lastHourlyStatusAt": null
+  "hourlyObservations": [
+    {
+      "checkedAt": "2026-10-17T09:03:45.786Z",
+      "outboundOffers": 9,
+      "cheapestTotalSeen": 985,
+      "matches": 0
+    }
+  ],
+  "lastHourlyStatusAt": "2026-10-17T09:03:45.786Z"
 }
