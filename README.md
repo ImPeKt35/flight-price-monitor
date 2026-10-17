@@ -30,6 +30,11 @@ surveillance s'exécute et indique le meilleur prix réellement lu pendant les
 retarder une exécution planifiée ; dans ce cas, le bilan part au prochain
 passage disponible.
 
+Si Google refuse temporairement une recherche, le workflow recommence depuis
+un second runner GitHub, avec une autre session réseau. Le premier échec reste
+silencieux ; un avertissement Discord n'est envoyé que si les deux essais
+indépendants échouent.
+
 ## Lancer localement sans envoyer de message
 
 ```bash

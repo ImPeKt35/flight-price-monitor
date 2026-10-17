@@ -12,6 +12,7 @@ const CONFIG = {
   dryRun: process.env.DRY_RUN === "1",
   startupNotice: process.env.STARTUP_NOTICE === "1",
   hourlyStatusNow: process.env.HOURLY_STATUS_NOW === "1",
+  suppressFailureNotifications: process.env.SUPPRESS_FAILURE_NOTIFICATIONS === "1",
   discordWebhook: process.env.DISCORD_WEBHOOK_URL || "",
 };
 
@@ -317,17 +318,23 @@ async function main() {
     state.consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
     state.lastError = error.message;
     const lastHealth = state.lastHealthAlertAt ? new Date(state.lastHealthAlertAt).getTime() : 0;
-    if (state.consecutiveFailures >= 3 && now.getTime() - lastHealth > 12 * 60 * 60 * 1000) {
+    if (
+      !CONFIG.suppressFailureNotifications &&
+      state.consecutiveFailures >= 3 &&
+      now.getTime() - lastHealth > 12 * 60 * 60 * 1000
+    ) {
       await postDiscord({
         username: "Vols Asie",
         content: `⚠️ La surveillance des vols n'arrive plus à lire Google Flights depuis ${state.consecutiveFailures} passages. Une intervention est nécessaire.`,
       });
       state.lastHealthAlertAt = now.toISOString();
     }
-    try {
-      await maybeNotifyHourlyStatus(state);
-    } catch (statusError) {
-      console.error(`Bilan horaire impossible: ${statusError.message}`);
+    if (!CONFIG.suppressFailureNotifications) {
+      try {
+        await maybeNotifyHourlyStatus(state);
+      } catch (statusError) {
+        console.error(`Bilan horaire impossible: ${statusError.message}`);
+      }
     }
     console.error(error.stack || error.message);
     process.exitCode = 1;

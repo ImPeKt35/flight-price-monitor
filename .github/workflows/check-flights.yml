@@ -25,6 +25,8 @@ concurrency:
 
 jobs:
   check:
+    outputs:
+      check_outcome: ${{ steps.flight_check.outcome }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -34,10 +36,13 @@ jobs:
       NOTIFY_AGAIN_AFTER_HOURS: "24"
       STARTUP_NOTICE: ${{ inputs.startup_notice == true && '1' || '0' }}
       HOURLY_STATUS_NOW: ${{ inputs.hourly_status_now == true && '1' || '0' }}
+      SUPPRESS_FAILURE_NOTIFICATIONS: "1"
 
     steps:
       - name: Récupérer le projet
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Installer Node.js
         uses: actions/setup-node@v4
@@ -52,9 +57,58 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Vérifier toutes les offres
+        id: flight_check
+        continue-on-error: true
         run: npm run check
 
       - name: Sauvegarder l'historique et les relevés de la dernière heure
+        if: always()
+        run: |
+          if git diff --quiet -- .monitor-state.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .monitor-state.json
+          git commit -m "chore: mise à jour de la surveillance [skip ci]"
+          git push
+
+  retry-on-another-runner:
+    needs: check
+    if: needs.check.outputs.check_outcome == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      MAX_PRICE_EUR: "650"
+      MAX_AVERAGE_MINUTES: "1200"
+      NOTIFY_AGAIN_AFTER_HOURS: "24"
+      STARTUP_NOTICE: ${{ inputs.startup_notice == true && '1' || '0' }}
+      HOURLY_STATUS_NOW: ${{ inputs.hourly_status_now == true && '1' || '0' }}
+      SUPPRESS_FAILURE_NOTIFICATIONS: "0"
+
+    steps:
+      - name: Récupérer l'état mis à jour par le premier essai
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Installer le robot
+        run: npm ci
+
+      - name: Installer Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Réessayer depuis un second runner
+        run: npm run check
+
+      - name: Sauvegarder le résultat du second essai
         if: always()
         run: |
           if git diff --quiet -- .monitor-state.json; then
