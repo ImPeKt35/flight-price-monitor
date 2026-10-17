@@ -1,8 +1,6 @@
 name: Vérifier les vols
 
 on:
-  schedule:
-    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       startup_notice:

@@ -19,23 +19,21 @@ Google Flights. L'API ne fournit toutefois pas l'information de bagage : toute
 alerte comporte donc un avertissement et un lien Skyscanner avec le filtre
 bagage pour la vérification finale.
 
-Le robot tourne dans GitHub Actions et ne dépend donc pas du Mac. Le webhook
-Discord est stocké exclusivement dans le secret GitHub
-`DISCORD_WEBHOOK_URL`.
+Le robot actif tourne dans un Worker Cloudflare et ne dépend donc pas du Mac.
+Les clés Skyscanner et Discord sont enregistrées comme secrets chiffrés dans
+Cloudflare et ne figurent pas dans le dépôt.
 
 Un bilan Discord est envoyé au plus tôt une fois par heure. Il confirme que la
 surveillance s'exécute, nomme explicitement la source et indique le meilleur
 prix réellement lu pendant les 60 dernières minutes.
 
-Le dossier `cloudflare/` contient la version recommandée du minuteur. Son cron
-Cloudflare est indépendant de GitHub et fonctionne à la minute 5 de chaque
-heure, Mac éteint. GitHub Actions reste un secours mais ses horaires gratuits
-peuvent être retardés ou omis.
+Le dossier `cloudflare/` contient le minuteur actif. Son cron fonctionne à la
+minute 5 de chaque heure, Mac éteint. Le workflow GitHub reste disponible pour
+un lancement manuel, mais sa planification a été désactivée afin d'éviter les
+doubles messages et les anciens prix Google.
 
-Si Google refuse temporairement une recherche, le workflow recommence depuis
-un second runner GitHub, avec une autre session réseau. Le premier échec reste
-silencieux ; un avertissement Discord n'est envoyé que si les deux essais
-indépendants échouent.
+Si la source Skyscanner refuse temporairement une recherche, Cloudflare envoie
+un avertissement puis réessaie automatiquement à l'heure suivante.
 
 ## Lancer localement sans envoyer de message
 

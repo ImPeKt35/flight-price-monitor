@@ -68,18 +68,22 @@ async function runMonitor(env) {
   try {
     const offers = await fetchOffers(env);
     const cheapest = offers[0];
-    const matches = offers.filter(
-      (offer) => offer.price <= maxPrice && offer.averageMinutes <= maxAverageMinutes,
-    );
+    const durationEligible = offers.filter((offer) => offer.averageMinutes <= maxAverageMinutes);
+    const bestDurationEligible = durationEligible[0];
+    const matches = durationEligible.filter((offer) => offer.price <= maxPrice);
     const matchLine = matches.length
       ? `🚨 **${matches.length} offre(s) respectent le prix et la durée.**`
       : `Aucune offre ne respecte encore le seuil de ${maxPrice} € et 20 h de moyenne.`;
+    const durationLine = bestDurationEligible
+      ? `Meilleur prix avec une durée moyenne de 20 h maximum : **${bestDurationEligible.price} €**\n`
+      : "Aucune offre avec une durée moyenne de 20 h maximum.\n";
 
     await postDiscord(env, {
       username: "Vols Asie",
       content:
         `✅ **Contrôle Skyscanner horaire terminé**\n\n` +
         `Meilleur prix trouvé : **${cheapest.price} €**\n` +
+        durationLine +
         `Compagnies : **${cheapest.outboundCarrier} / ${cheapest.inboundCarrier}**\n` +
         `Durées : ${formatDuration(cheapest.outboundMinutes)} / ${formatDuration(cheapest.inboundMinutes)} ` +
         `(moyenne ${formatDuration(cheapest.averageMinutes)})\n` +
