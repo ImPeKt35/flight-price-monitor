@@ -1,14 +1,14 @@
 {
   "notified": {},
-  "consecutiveFailures": 1,
+  "consecutiveFailures": 0,
   "lastHealthAlertAt": null,
-  "lastRunAt": "2026-10-16T23:28:59.719Z",
-  "lastError": "Google Flights a refusé la recherche",
+  "lastRunAt": "2026-10-17T01:29:55.509Z",
+  "lastError": null,
   "lastRead": {
-    "checkedAt": "2026-10-16T17:58:00.653Z",
+    "checkedAt": "2026-10-17T01:29:55.509Z",
     "outboundOffers": 9,
     "cheapestTotalSeen": 985,
     "matches": 0
   },
-  "lastPersistedAt": "2026-10-16T17:58:00.653Z"
+  "lastPersistedAt": "2026-10-17T01:29:55.509Z"
 }
