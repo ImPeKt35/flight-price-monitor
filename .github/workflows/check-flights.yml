@@ -10,6 +10,11 @@ on:
         required: false
         default: false
         type: boolean
+      hourly_status_now:
+        description: "Envoyer immédiatement le bilan horaire"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -28,6 +33,7 @@ jobs:
       MAX_AVERAGE_MINUTES: "1200"
       NOTIFY_AGAIN_AFTER_HOURS: "24"
       STARTUP_NOTICE: ${{ inputs.startup_notice == true && '1' || '0' }}
+      HOURLY_STATUS_NOW: ${{ inputs.hourly_status_now == true && '1' || '0' }}
 
     steps:
       - name: Récupérer le projet
@@ -48,7 +54,7 @@ jobs:
       - name: Vérifier toutes les offres
         run: npm run check
 
-      - name: Sauvegarder l'historique anti-doublon
+      - name: Sauvegarder l'historique et les relevés de la dernière heure
         if: always()
         run: |
           if git diff --quiet -- .monitor-state.json; then

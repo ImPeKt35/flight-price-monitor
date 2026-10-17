@@ -11,6 +11,7 @@ const CONFIG = {
   notifyAgainAfterHours: Number(process.env.NOTIFY_AGAIN_AFTER_HOURS || 24),
   dryRun: process.env.DRY_RUN === "1",
   startupNotice: process.env.STARTUP_NOTICE === "1",
+  hourlyStatusNow: process.env.HOURLY_STATUS_NOW === "1",
   discordWebhook: process.env.DISCORD_WEBHOOK_URL || "",
 };
 
@@ -236,12 +237,48 @@ async function notifyMatch(result) {
   });
 }
 
+function recentObservations(state) {
+  const cutoff = now.getTime() - 60 * 60 * 1000;
+  return (state.hourlyObservations || []).filter(
+    (observation) => new Date(observation.checkedAt).getTime() >= cutoff,
+  );
+}
+
+async function maybeNotifyHourlyStatus(state) {
+  const lastStatusAt = state.lastHourlyStatusAt
+    ? new Date(state.lastHourlyStatusAt).getTime()
+    : 0;
+  const due = CONFIG.hourlyStatusNow || now.getTime() - lastStatusAt >= 60 * 60 * 1000;
+  if (!due) return;
+
+  const observations = recentObservations(state);
+  if (observations.length > 0) {
+    const best = Math.min(...observations.map((observation) => observation.cheapestTotalSeen));
+    const matches = Math.max(...observations.map((observation) => observation.matches));
+    await postDiscord({
+      username: "Vols Asie",
+      content:
+        `✅ **Surveillance des vols en cours**\n\n` +
+        `Meilleur prix observé durant la dernière heure : **${best} €**\n` +
+        `Vérifications réussies : **${observations.length}**\n` +
+        `Offres respectant prix + durée : **${matches}**\n\n` +
+        "Le bagage en soute reste à confirmer avant l’achat.",
+    });
+  } else {
+    await postDiscord({
+      username: "Vols Asie",
+      content:
+        "⚠️ **Surveillance des vols en cours, mais aucune lecture n’a réussi durant la dernière heure.**\n\n" +
+        `Dernière erreur : ${state.lastError || "inconnue"}`,
+    });
+  }
+  state.lastHourlyStatusAt = now.toISOString();
+}
+
 async function main() {
   const state = await readState();
   state.notified ||= {};
-  const originalState = JSON.stringify(state);
-  const lastPersistedAt = state.lastPersistedAt ? new Date(state.lastPersistedAt).getTime() : 0;
-  const checkpointDue = now.getTime() - lastPersistedAt >= 6 * 60 * 60 * 1000;
+  state.hourlyObservations ||= [];
   let runtime;
   try {
     runtime = await startUnmarkedChrome();
@@ -250,14 +287,13 @@ async function main() {
     const result = await findMatches(page);
     state.consecutiveFailures = 0;
     state.lastError = null;
-    if (checkpointDue || result.matches.length > 0 || CONFIG.startupNotice) {
-      state.lastRead = {
-        checkedAt: now.toISOString(),
-        outboundOffers: result.outboundCount,
-        cheapestTotalSeen: result.cheapest,
-        matches: result.matches.length,
-      };
-    }
+    state.lastRead = {
+      checkedAt: now.toISOString(),
+      outboundOffers: result.outboundCount,
+      cheapestTotalSeen: result.cheapest,
+      matches: result.matches.length,
+    };
+    state.hourlyObservations.push(state.lastRead);
 
     const repeatDelay = CONFIG.notifyAgainAfterHours * 60 * 60 * 1000;
     for (const match of result.matches) {
@@ -275,6 +311,7 @@ async function main() {
           "✅ Surveillance globale active toutes les 15 minutes : toutes les compagnies et nouvelles combinaisons Paris → Hong Kong / Bangkok → Paris sont recherchées. Seuil 650 €, durée moyenne 20 h. Le bagage en soute sera indiqué comme point à confirmer.",
       });
     }
+    await maybeNotifyHourlyStatus(state);
     console.log(`Offres lues: ${result.outboundCount}; moins chère: ${result.cheapest} €; correspondances: ${result.matches.length}`);
   } catch (error) {
     state.consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
@@ -286,6 +323,11 @@ async function main() {
         content: `⚠️ La surveillance des vols n'arrive plus à lire Google Flights depuis ${state.consecutiveFailures} passages. Une intervention est nécessaire.`,
       });
       state.lastHealthAlertAt = now.toISOString();
+    }
+    try {
+      await maybeNotifyHourlyStatus(state);
+    } catch (statusError) {
+      console.error(`Bilan horaire impossible: ${statusError.message}`);
     }
     console.error(error.stack || error.message);
     process.exitCode = 1;
@@ -299,9 +341,12 @@ async function main() {
     state.notified = Object.fromEntries(
       Object.entries(state.notified).filter(([, sentAt]) => new Date(sentAt).getTime() >= expiration),
     );
-    if (checkpointDue || state.consecutiveFailures > 0) state.lastRunAt = now.toISOString();
-    if (checkpointDue) state.lastPersistedAt = now.toISOString();
-    if (JSON.stringify(state) !== originalState) await saveState(state);
+    const observationExpiration = now.getTime() - 75 * 60 * 1000;
+    state.hourlyObservations = (state.hourlyObservations || []).filter(
+      (observation) => new Date(observation.checkedAt).getTime() >= observationExpiration,
+    );
+    state.lastRunAt = now.toISOString();
+    await saveState(state);
   }
 }
 

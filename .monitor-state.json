@@ -10,5 +10,7 @@
     "cheapestTotalSeen": 985,
     "matches": 0
   },
-  "lastPersistedAt": "2026-10-17T01:29:55.509Z"
+  "lastPersistedAt": "2026-10-17T01:29:55.509Z",
+  "hourlyObservations": [],
+  "lastHourlyStatusAt": null
 }

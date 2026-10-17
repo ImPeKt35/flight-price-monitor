@@ -24,6 +24,12 @@ Le robot tourne dans GitHub Actions et ne dépend donc pas du Mac. Le webhook
 Discord est stocké exclusivement dans le secret GitHub
 `DISCORD_WEBHOOK_URL`.
 
+Un bilan Discord est envoyé au plus tôt une fois par heure. Il confirme que la
+surveillance s'exécute et indique le meilleur prix réellement lu pendant les
+60 dernières minutes, ainsi que le nombre de contrôles réussis. GitHub peut
+retarder une exécution planifiée ; dans ce cas, le bilan part au prochain
+passage disponible.
+
 ## Lancer localement sans envoyer de message
 
 ```bash
