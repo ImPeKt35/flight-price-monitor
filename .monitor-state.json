@@ -1,9 +1,9 @@
 {
   "notified": {},
-  "consecutiveFailures": 0,
+  "consecutiveFailures": 1,
   "lastHealthAlertAt": null,
-  "lastRunAt": "2026-10-17T17:01:30.793Z",
-  "lastError": null,
+  "lastRunAt": "2026-10-17T17:55:45.394Z",
+  "lastError": "Cannot convert argument to a ByteString because the character at index 0 has a value of 8226 which is greater than 255.",
   "lastRead": {
     "checkedAt": "2026-10-17T17:01:30.793Z",
     "outboundOffers": 9,
