@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vols-asie-monitor",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-10-17",
+  "workers_dev": true,
+  "triggers": {
+    "crons": ["5 * * * *"]
+  },
+  "vars": {
+    "MAX_PRICE_EUR": "650",
+    "MAX_AVERAGE_MINUTES": "1200"
+  }
+}

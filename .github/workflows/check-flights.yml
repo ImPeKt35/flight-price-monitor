@@ -2,7 +2,7 @@ name: Vérifier les vols
 
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       startup_notice:
@@ -21,7 +21,7 @@ permissions:
 
 concurrency:
   group: flight-price-monitor
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -31,6 +31,7 @@ jobs:
     timeout-minutes: 12
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      OMKAR_API_KEY: ${{ secrets.OMKAR_API_KEY }}
       MAX_PRICE_EUR: "650"
       MAX_AVERAGE_MINUTES: "1200"
       NOTIFY_AGAIN_AFTER_HOURS: "24"
@@ -54,6 +55,7 @@ jobs:
         run: npm ci
 
       - name: Installer Chromium
+        if: env.OMKAR_API_KEY == ''
         run: npx playwright install --with-deps chromium
 
       - name: Vérifier toutes les offres
@@ -80,6 +82,7 @@ jobs:
     timeout-minutes: 12
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      OMKAR_API_KEY: ${{ secrets.OMKAR_API_KEY }}
       MAX_PRICE_EUR: "650"
       MAX_AVERAGE_MINUTES: "1200"
       NOTIFY_AGAIN_AFTER_HOURS: "24"
@@ -103,6 +106,7 @@ jobs:
         run: npm ci
 
       - name: Installer Chromium
+        if: env.OMKAR_API_KEY == ''
         run: npx playwright install --with-deps chromium
 
       - name: Réessayer depuis un second runner

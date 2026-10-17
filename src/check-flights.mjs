@@ -14,7 +14,10 @@ const CONFIG = {
   hourlyStatusNow: process.env.HOURLY_STATUS_NOW === "1",
   suppressFailureNotifications: process.env.SUPPRESS_FAILURE_NOTIFICATIONS === "1",
   discordWebhook: process.env.DISCORD_WEBHOOK_URL || "",
+  omkarApiKey: process.env.OMKAR_API_KEY || "",
 };
+
+const OMKAR_URL = "https://skyscanner-scraper.omkar.cloud/flights/search-multi-city";
 
 // Multi-destination : PAR → HKG le 28/12/2026, puis BKK → PAR le 14/01/2027.
 const GOOGLE_URL =
@@ -57,6 +60,71 @@ function signatureFor(result) {
     .update([result.price, result.outbound.airline, result.outbound.duration, result.inbound.airline, result.inbound.duration].join("|"))
     .digest("hex")
     .slice(0, 16);
+}
+
+function carrierNames(leg) {
+  const names = (leg.carriers || []).map((carrier) => carrier.name).filter(Boolean);
+  return [...new Set(names)].join(" + ") || "Compagnie à vérifier";
+}
+
+function bookingLink(itinerary) {
+  for (const option of itinerary.booking_options || []) {
+    for (const agent of option.agents || []) {
+      if (agent.link) return agent.link;
+    }
+  }
+  return SKYSCANNER_URL;
+}
+
+function parseSkyscannerItinerary(itinerary) {
+  if (!Array.isArray(itinerary.legs) || itinerary.legs.length !== 2) return null;
+  const [outboundLeg, inboundLeg] = itinerary.legs;
+  const price = Number(itinerary.price?.amount);
+  const outboundDuration = Number(outboundLeg.duration_minutes);
+  const inboundDuration = Number(inboundLeg.duration_minutes);
+  if (![price, outboundDuration, inboundDuration].every(Number.isFinite)) return null;
+
+  const result = {
+    source: "Skyscanner",
+    price,
+    outbound: { airline: carrierNames(outboundLeg), duration: outboundDuration },
+    inbound: { airline: carrierNames(inboundLeg), duration: inboundDuration },
+    averageMinutes: Math.round((outboundDuration + inboundDuration) / 2),
+    bookingUrl: bookingLink(itinerary),
+  };
+  result.signature = signatureFor(result);
+  return result;
+}
+
+async function findSkyscannerMatches() {
+  const params = new URLSearchParams({
+    legs: JSON.stringify([
+      { origin: "PAR", destination: "HKG", date: "2026-12-28" },
+      { origin: "BKK", destination: "PAR", date: "2027-01-14" },
+    ]),
+    sort: "cheapest",
+    max_poll_seconds: "60",
+    max_results: "100",
+    market: "FR",
+    locale: "fr-FR",
+    currency: "EUR",
+  });
+  const response = await fetch(`${OMKAR_URL}?${params}`, {
+    headers: { "API-Key": CONFIG.omkarApiKey },
+  });
+  if (!response.ok) throw new Error(`Skyscanner API HTTP ${response.status}`);
+  const data = await response.json();
+  const offers = (data.results || []).map(parseSkyscannerItinerary).filter(Boolean);
+  if (offers.length === 0) throw new Error("Skyscanner n'a renvoyé aucune offre exploitable");
+  const matches = offers.filter(
+    (offer) => offer.price <= CONFIG.maxPriceEur && offer.averageMinutes <= CONFIG.maxAverageMinutes,
+  );
+  return {
+    source: "Skyscanner",
+    matches,
+    offerCount: offers.length,
+    cheapest: Math.min(...offers.map((offer) => offer.price)),
+  };
 }
 
 function formatDuration(minutes) {
@@ -211,7 +279,16 @@ async function findMatches(page) {
     }
   }
 
-  return { matches, outboundCount: outbound.length, cheapest: Math.min(...outbound.map((card) => card.price)) };
+  return {
+    source: "Google Flights (secours)",
+    matches: matches.map((match) => ({
+      ...match,
+      source: "Google Flights (secours)",
+      bookingUrl: match.googleUrl,
+    })),
+    offerCount: outbound.length,
+    cheapest: Math.min(...outbound.map((card) => card.price)),
+  };
 }
 
 async function notifyMatch(result) {
@@ -220,7 +297,7 @@ async function notifyMatch(result) {
     embeds: [
       {
         title: `✈️ Offre sous ${CONFIG.maxPriceEur} € détectée : ${result.price} €`,
-        url: result.googleUrl,
+        url: result.bookingUrl,
         color: 0xf59e0b,
         description:
           "Paris → Hong Kong le 28 décembre 2026\nBangkok → Paris le 14 janvier 2027",
@@ -228,10 +305,11 @@ async function notifyMatch(result) {
           { name: "Aller", value: `${result.outbound.airline}\n${formatDuration(result.outbound.duration)}`, inline: true },
           { name: "Retour", value: `${result.inbound.airline}\n${formatDuration(result.inbound.duration)}`, inline: true },
           { name: "Durée moyenne", value: formatDuration(result.averageMinutes), inline: true },
+          { name: "Source", value: result.source, inline: true },
           { name: "Bagage en soute", value: "⚠️ À confirmer avant achat", inline: false },
           { name: "Vérifier", value: `[Skyscanner avec bagage](${SKYSCANNER_URL}) · [KAYAK](${KAYAK_URL})`, inline: false },
         ],
-        footer: { text: "Alerte marché complète. Prix et bagage à revérifier avant paiement." },
+        footer: { text: "Prix en direct. Le bagage doit être revérifié avant paiement." },
         timestamp: now.toISOString(),
       },
     ],
@@ -256,11 +334,13 @@ async function maybeNotifyHourlyStatus(state) {
   if (observations.length > 0) {
     const best = Math.min(...observations.map((observation) => observation.cheapestTotalSeen));
     const matches = Math.max(...observations.map((observation) => observation.matches));
+    const sources = [...new Set(observations.map((observation) => observation.source).filter(Boolean))].join(", ");
     await postDiscord({
       username: "Vols Asie",
       content:
         `✅ **Surveillance des vols en cours**\n\n` +
         `Meilleur prix observé durant la dernière heure : **${best} €**\n` +
+        `Source : **${sources || "inconnue"}**\n` +
         `Vérifications réussies : **${observations.length}**\n` +
         `Offres respectant prix + durée : **${matches}**\n\n` +
         "Le bagage en soute reste à confirmer avant l’achat.",
@@ -282,15 +362,21 @@ async function main() {
   state.hourlyObservations ||= [];
   let runtime;
   try {
-    runtime = await startUnmarkedChrome();
-    const context = runtime.browser.contexts()[0];
-    const page = context.pages()[0] || (await context.newPage());
-    const result = await findMatches(page);
+    let result;
+    if (CONFIG.omkarApiKey) {
+      result = await findSkyscannerMatches();
+    } else {
+      runtime = await startUnmarkedChrome();
+      const context = runtime.browser.contexts()[0];
+      const page = context.pages()[0] || (await context.newPage());
+      result = await findMatches(page);
+    }
     state.consecutiveFailures = 0;
     state.lastError = null;
     state.lastRead = {
       checkedAt: now.toISOString(),
-      outboundOffers: result.outboundCount,
+      source: result.source,
+      offers: result.offerCount,
       cheapestTotalSeen: result.cheapest,
       matches: result.matches.length,
     };
@@ -309,11 +395,11 @@ async function main() {
       await postDiscord({
         username: "Vols Asie",
         content:
-          "✅ Surveillance globale active toutes les 15 minutes : toutes les compagnies et nouvelles combinaisons Paris → Hong Kong / Bangkok → Paris sont recherchées. Seuil 650 €, durée moyenne 20 h. Le bagage en soute sera indiqué comme point à confirmer.",
+          `✅ Surveillance globale active : toutes les compagnies et nouvelles combinaisons Paris → Hong Kong / Bangkok → Paris sont recherchées via ${result.source}. Seuil 650 €, durée moyenne 20 h. Le bagage en soute reste à confirmer avant l'achat.`,
       });
     }
     await maybeNotifyHourlyStatus(state);
-    console.log(`Offres lues: ${result.outboundCount}; moins chère: ${result.cheapest} €; correspondances: ${result.matches.length}`);
+    console.log(`Source: ${result.source}; offres lues: ${result.offerCount}; moins chère: ${result.cheapest} €; correspondances: ${result.matches.length}`);
   } catch (error) {
     state.consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
     state.lastError = error.message;
