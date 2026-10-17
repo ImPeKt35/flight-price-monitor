@@ -1,8 +1,8 @@
 {
   "notified": {},
-  "consecutiveFailures": 1,
+  "consecutiveFailures": 2,
   "lastHealthAlertAt": null,
-  "lastRunAt": "2026-10-17T17:55:45.394Z",
+  "lastRunAt": "2026-10-17T17:55:57.445Z",
   "lastError": "Cannot convert argument to a ByteString because the character at index 0 has a value of 8226 which is greater than 255.",
   "lastRead": {
     "checkedAt": "2026-10-17T17:01:30.793Z",
@@ -19,5 +19,5 @@
       "matches": 0
     }
   ],
-  "lastHourlyStatusAt": "2026-10-17T17:01:30.793Z"
+  "lastHourlyStatusAt": "2026-10-17T17:55:57.445Z"
 }
