@@ -29,7 +29,6 @@ jobs:
     timeout-minutes: 12
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-      OMKAR_API_KEY: ${{ secrets.OMKAR_API_KEY }}
       MAX_PRICE_EUR: "650"
       MAX_AVERAGE_MINUTES: "1200"
       NOTIFY_AGAIN_AFTER_HOURS: "24"
@@ -80,7 +79,6 @@ jobs:
     timeout-minutes: 12
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-      OMKAR_API_KEY: ${{ secrets.OMKAR_API_KEY }}
       MAX_PRICE_EUR: "650"
       MAX_AVERAGE_MINUTES: "1200"
       NOTIFY_AGAIN_AFTER_HOURS: "24"
